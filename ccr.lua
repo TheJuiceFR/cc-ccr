@@ -57,7 +57,7 @@ elseif option=="purge" then
 		ccr.purge(v,1)
 	end
 elseif option=="update" then
-	if not ccr.sync(0) then return end
+	if not ccr.sync(1) then return end
 	
 	local needed = ccr.resolve(1)
 	local ldb = ccr.loadldb()
@@ -118,7 +118,7 @@ elseif option=="info" then
 		else
 			print("'"..v"' is not in main database")
 		end
-		if ldb[v] and (db[v]==nil or ldb[v].version~=db[v].version) then
+		if ldb[v] then
 			print("local version: "..ldb[v].version)
 		else
 			print("'"..v.."' is not installed locally")
@@ -164,7 +164,7 @@ elseif option=="bootstrap" then
 		return
 	end
 	
-	local items={"/ccr.lua","/startup/ccr.lua","/lib/ccr.lua","/lib/pack.lua","/startup/000loadlib.lua","/loadlib.lua"}
+	local items={"/ccr.lua","/startup/ccr.lua","/lib/ccr.lua","/startup/000loadlib.lua","/loadlib.lua"}
 	for k,v in ipairs(items) do
 		if pcall(fs.copy,v,m..v) then
 			print("Copied "..v)
@@ -175,7 +175,6 @@ elseif option=="bootstrap" then
 	print("Creating local database")
 	local newldb={}
 	newldb.ccr=ldb.ccr
-	newldb.pack=ldb.pack
 	newldb.ccinit=ldb.ccinit
 	
 	local f=fs.open(m.."/cfg/ccr/ldb",'w')
