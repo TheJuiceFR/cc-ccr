@@ -122,6 +122,11 @@ function sync(verb)
 		end
 		
 		sdb.url = v
+		if type(sdb.version) ~= "string" then sdb.version = "0" end
+		if type(sdb.description) ~= "string" then sdb.description = "No description provided." end
+		if type(sdb.provides) ~= "table" then sdb.provides = {} end
+		if type(sdb.depends) ~= "table" then sdb.depends = {} end
+		if type(sdb.optDepends) ~= "table" then sdb.optDepends = {} end
 		
 		db[k] = sdb
 	end

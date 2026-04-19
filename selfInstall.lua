@@ -1,89 +1,10 @@
 if fs.exists("/ccr.lua") then
-	shell.run("/startup/000loadlib.lua")
-	for _,f in pairs(fs.list("/startup")) do
-		if f~="000loadlib.lua" then shell.run("/startup/"..f) end
-	end
+	--shell.run("/startup/000loadlib.lua")
+	--for _,f in pairs(fs.list("/startup")) do
+	--	if f~="000loadlib.lua" then shell.run("/startup/"..f) end
+	--end
 	print("CCRepo already installed. Skipping...")
 	return
-end
-
-local function parseTree(pack,outfil)
-	repeat
-		local out=pack.readLine()
-		if out and out~="" then
-			fs.makeDir(outfil.."/"..out)
-		end
-	until out==""
-end
-
-local function parseDump(pack,outfil)
-	repeat
-		local out=pack.read(1)
-		local fil=""
-		while out and out~=">" do
-			fil=fil..out
-			out=pack.read(1)
-		end
-		
-		out=pack.read(1)
-		local len=""
-		while out and out~=">" do
-			len=len..out
-			out=pack.read(1)
-		end
-		len=tonumber(len)
-		
-		if type(len)=="number" then
-			local ff=fs.open(outfil.."/"..fil,'w')
-			for n=1,len do
-				ff.write(pack.read(1))
-			end
-			ff.close()
-		end
-	until out==nil
-end
-
-function packdown(infil,outfil)
-	assert(pcall(fs.makeDir,outfil),"Output path invalid")
-	local pack=fs.open(infil,'r')
-	assert(pack,"Pack file does not exist, or is inaccessable")
-	
-	assert(pcall(parseTree,pack,outfil),"Error parsing pack tree")
-	assert(pcall(parseDump,pack,outfil),"Error parsing pack dump")
-	
-	pack.close()
-end
-
-local function install(pkg,verb,dep,db,ldb)
-	if not db[pkg] then
-		return false, "'"..pkg.."' package does not exist."
-	end
-	if verb and verb>1 then print("Preparing to install '"..pkg.."'") end
-	
-	for k,v in pairs(db[pkg].depends) do
-		if not ldb[v] then
-			if not install(v,verb,true,db,ldb) then return false, "Dependency '"..v.."' could not be installed." end
-		end
-	end
-	
-	if verb and verb>1 then print("Downloading '"..pkg.."'") end
-	local path="/tmp/ccr/"..pkg.."_"..db[pkg].version..".pack"
-	local response=http.get(db[pkg].package)
-	if not response then return false,"Error retrieving '"..pkg.."' package from \""..db[pkg].package..'"' end
-	
-	local f=fs.open(path,'w')
-	repeat
-		local rl=response.read(20)
-		if rl then f.write(rl) end
-	until rl==nil
-	f.close()
-	
-	if verb and verb>0 then print("installing '"..pkg.."'") end
-	packdown(path,"/")
-	
-	ldb[pkg]=db[pkg]
-	ldb[pkg].explicit=not dep
-	return true
 end
 
 if http==nil then
@@ -92,22 +13,129 @@ if http==nil then
 	return false
 end
 
-print("Creating database file")
-local response=http.get("https://github.com/TheJuiceFR/CCRepo/raw/main/database")
-if not response then
-	print("Cannot retrieve database file")
+
+
+local function download(pkg) --download a package to /tmp/ccr, deleting an existing package if it was downloaded
+	print("Downloading '"..pkg.."'")
+	
+	if not db[pkg] then
+		error("'"..pkg.."' package does not exist.")
+	end
+	
+	local tmpDir = "/tmp/ccr/"..pkg
+	local downloadDir = db[pkg].url
+	fs.delete(tmpDir)
+	
+	for k,v in pairs(db[pkg].provides) do
+		if not wget(downloadDir, tmpDir, v) then 
+			error("File '"..v.."' could not be downloaded")
+		end
+	end
+	if not wget(downloadDir, tmpDir, "/pkg") then
+		error("pkg file could not be downloaded")
+	end
+	
+	return true
+end
+
+local function install(pkg, dep)
+	local pkgPath = "/tmp/ccr/"..pkg
+	if not fs.exists(pkgPath.."/pkg") then
+		return false, "'"..pkg.."' package does not exist."
+	end
+	print("Installing '"..pkg.."'")
+	
+	local pkgInfo = loadfile(pkgPath.."/pkg")
+	local succ, pkgInfo = pcall(pkgInfo)
+	if not succ then error("Bad pkg file") end
+	
+	if type(pkgInfo.version) ~= "string" then pkgInfo.version = "0" end
+	if type(pkgInfo.description) ~= "string" then pkgInfo.description = "No description provided." end
+	if type(pkgInfo.provides) ~= "table" then pkgInfo.provides = {} end
+	if type(pkgInfo.depends) ~= "table" then pkgInfo.depends = {} end
+	if type(pkgInfo.optDepends) ~= "table" then pkgInfo.optDepends = {} end
+	pkgInfo.explicit = not dep
+	
+	for k,v in pairs(pkgInfo.provides) do
+		fs.delete(v)
+		fs.move(pkgPath..v, v)
+	end
+	
+	
+	
+	ldb[pkg]=pkgInfo
+	saveldb(ldb)
+	return true
+end
+
+
+
+print("Syncing with database")
+
+-- Get gdb, Global DataBase
+local response=http.get("https://github.com/TheJuiceFR/cc-repository/raw/main/repository.lua")
+if not response then 
+	print("No response from main database")
 	return false
 end
+local gdb=response.readAll()
+response.close()
+
+local succ1, gdb = pcall(loadstring,gdb)
+local succ2, gdb = pcall(gdb)
+if not succ1 or not succ2 then
+	print("Bad response from database")
+	return false
+end
+
+local db = {}
+-- Lookup each package in the gdb
+-- build full db
+for k,v in pairs(gdb) do
+	local response=http.get(v.."/pkg")
+	if not response then 
+		print("No response from "..k.." database")
+		return false
+	end
+	local sdb = response.readAll()
+	response.close()
+	
+	local succ1, sdb = pcall(loadstring,sdb)
+	local succ2, sdb = pcall(sdb)
+	if not succ1 or not succ2 then
+		print("Bad response from "..k.." database")
+		return false
+	end
+	
+	sdb.url = v
+	if type(sdb.version) ~= "string" then sdb.version = "0" end
+	if type(sdb.description) ~= "string" then sdb.description = "No description provided." end
+	if type(sdb.provides) ~= "table" then sdb.provides = {} end
+	if type(sdb.depends) ~= "table" then sdb.depends = {} end
+	if type(sdb.optDepends) ~= "table" then sdb.optDepends = {} end
+	
+	db[k] = sdb
+end
+
+print("Initiating and testing database")
+
 local dbf=fs.open("/cfg/ccr/db",'w')
-repeat
-	local rl=response.read(20)
-	if rl then dbf.write(rl) end
-until rl==nil
+dbf.write("local database=")
+dbf.write(textutils.serialize(db))
+dbf.write("\n\nreturn database")
 dbf.close()
+
 local db=loadfile("/cfg/ccr/db")()
+
+
 local ldb={}
 
-install("ccr",3,false,db,ldb)
+print("Installing..."
+
+download("ccinit")
+download("ccr")
+install("ccinit", true)
+install("ccr")
 
 print("Creating local database")
 
