@@ -1,4 +1,4 @@
-local ccr = require("/lib/ccr")\
+local ccr = require("/lib/ccr")
 local db = ccr.loaddb()
 
 local plist = {}
