@@ -1,14 +1,15 @@
-local db=ccr.loaddb()
+local ccr = require("/lib/ccr")\
+local db = ccr.loaddb()
 
-local plist={}
+local plist = {}
 
 for k,v in pairs(db) do
-	plist[#plist+1]=k
+	plist[#plist+1] = k
 end
 
-local ldb=ccr.loaddb()
+local ldb = ccr.loaddb()
 
-local lplist={}
+local lplist = {}
 
 for k,v in pairs(ldb) do
 	lplist[#lplist+1]=k

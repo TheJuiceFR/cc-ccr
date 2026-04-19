@@ -1,4 +1,4 @@
-
+local ccr = {}
 
 
 -------------------------------
@@ -31,12 +31,12 @@ end
 -------------------------------
 ---     query functions     ---
 
-function loaddb()
+function ccr.loaddb()
 	local succ, f = pcall(loadfile("/cfg/ccr/db"))
-	if succ then 
+	if succ then
 		return f
 	else
-		sync()
+		ccr.sync()
 		local succ, f = pcall(loadfile("/cfg/ccr/db"))
 		if succ then 
 			return f
@@ -46,7 +46,7 @@ function loaddb()
 	end
 end
 
-function loadldb()
+function ccr.loadldb()
 	local succ, f = pcall(loadfile("/cfg/ccr/ldb"))
 	if succ then 
 		return f
@@ -55,11 +55,11 @@ function loadldb()
 	end
 end
 
-function resolve(verb)	--determines what packages need updating.
+function ccr.resolve(verb)	--determines what packages need updating.
 	if type(verb) ~= "number" then verb = 0 end
 	if verb>0 then print("Finding old packages") end
-	local db=loaddb()
-	local ldb=loadldb()
+	local db=ccr.loaddb()
+	local ldb=ccr.loadldb()
 	local out={}
 	
 	for k,v in pairs(ldb) do
@@ -75,14 +75,14 @@ end
 -------------------------------
 ---     action functions    ---
 
-function clearCache(verb)
+function ccr.clearCache(verb)
 	if type(verb) ~= "number" then verb = 0 end
 	if verb>0 then print("Clearing cache") end
 	fs.delete("/tmp/ccr")
 	return true
 end
 
-function sync(verb)
+function ccr.sync(verb)
 	if type(verb) ~= "number" then verb = 0 end
 	if verb >= 2 then print("Syncing with database") end
 	
@@ -140,11 +140,11 @@ function sync(verb)
 	return true
 end
 
-function download(pkg,verb) --download a package to /tmp/ccr, deleting an existing package if it was downloaded
+function ccr.download(pkg,verb) --download a package to /tmp/ccr, deleting an existing package if it was downloaded
 	if type(verb) ~= "number" then verb = 0 end
 	if verb>0 then print("Downloading '"..pkg.."'") end
 	
-	local db=loaddb()
+	local db=ccr.loaddb()
 	if not db[pkg] then
 		return false, "'"..pkg.."' package does not exist."
 	end
@@ -161,10 +161,10 @@ function download(pkg,verb) --download a package to /tmp/ccr, deleting an existi
 	return true
 end
 
-function install(pkg,verb,dep)	--installs or upgrades a single package.
+function ccr.install(pkg,verb,dep)	--installs or upgrades a single package.
 	if type(verb) ~= "number" then verb = 0 end
 	
-	local ldb=loadldb()										--	[verb] sets level of verbosity	
+	local ldb=ccr.loadldb()										--	[verb] sets level of verbosity	
 	local pkgPath = "/tmp/ccr/"..pkg							--		0:slient 1:succinct 2:verbose
 	if not fs.exists(pkgPath.."/pkg") then						--	[dep] declares the package as a dependency.
 		return false, "'"..pkg.."' package does not exist."
@@ -194,16 +194,16 @@ function install(pkg,verb,dep)	--installs or upgrades a single package.
 	return true
 end
 
-function remove(pkg,verb,force)			--removes a package
+function ccr.remove(pkg,verb,force)			--removes a package
 	if type(verb) ~= "number" then verb = 0 end
-	local ldb=loadldb()					--	[force] forces a dependency to be removed
+	local ldb=ccr.loadldb()					--	[force] forces a dependency to be removed
 	if not ldb[pkg] then
 		return false, "'"..pkg.."' package is not installed."
 	end
 	if not force then
 		for k,v in pairs(ldb) do
 			for k2,v2 in pairs(v.depends) do
-				if v2==pkg then return false, "'"..pkg.."' is required by '"..v.."'" end
+				if v2==pkg then return false, "'"..pkg.."' is required by '"..k.."'" end
 			end
 		end
 	end
@@ -228,11 +228,11 @@ local function depTree(pkg,db,out) --accessory function of installTree. Creates 
 	return true
 end
 
-function installTree(pkg, verb)						--Downloads and installs a package and it's dependancy tree
+function ccr.installTree(pkg, verb)						--Downloads and installs a package and it's dependancy tree
 	if type(verb) ~= "number" then verb = 0 end		--Add an [asNeeded] string to install this package as a dep of asNeeded
 	local neededDeps = {}
-	local db = loaddb()
-	local ldb = loadldb()
+	local db = ccr.loaddb()
+	local ldb = ccr.loadldb()
 	if verb > 0 then print("Installing '"..pkg.."' with dependancies") end
 	
 	succ, res = depTree(pkg,db,neededDeps)
@@ -240,27 +240,27 @@ function installTree(pkg, verb)						--Downloads and installs a package and it's
 	
 	for k,v in pairs(ldb) do neededDeps[k] = nil end	--Remove already installed programs from list
 	
-	succ, res = download(pkg, verb-1)
+	succ, res = ccr.download(pkg, verb-1)
 	if not succ then return false, pkg..": "..res end
 	for k,v in pairs(neededDeps) do
-		succ, res = download(k, verb-1)
+		succ, res = ccr.download(k, verb-1)
 		if not succ then return false, k..": "..res end
 	end
 	
-	succ, res = install(pkg, verb-1, false)
+	succ, res = ccr.install(pkg, verb-1, false)
 	if not succ then return false, pkg..": "..res end
 	for k,v in pairs(neededDeps) do
-		succ, res = install(k, verb-1, true)
+		succ, res = ccr.install(k, verb-1, true)
 		if not succ then return false, k..": "..res end
 	end
 	
 end
 
-function purge(pkg,verb) --Purges any files related to <pkg>
+function ccr.purge(pkg,verb) --Purges any files related to <pkg>
 	if type(verb) ~= "number" then verb = 0 end
 	if verb>0 then print("purging '"..pkg.."'") end
-	local db=loaddb()
-	local ldb=loadldb()
+	local db=ccr.loaddb()
+	local ldb=ccr.loadldb()
 	
 	if ldb[pkg] then
 		for k,v in pairs(ldb[pkg].provides) do
@@ -286,17 +286,11 @@ function purge(pkg,verb) --Purges any files related to <pkg>
 	return true
 end
 
---[[function repair(pkg,verb,recurse)	--force removes a package and reinstalls, optionally repairs dependancy tree as well, recursively
-	
-end]]
-
---[[function repairAll(verb)			--repairs all packages one by one
-	
-end]]
-
 --[[function autoremove()		--removes all uneeded dependencies
 
 end]]
 
 ---     action functions    ---
 -------------------------------
+
+return ccr

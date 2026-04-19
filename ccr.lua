@@ -1,4 +1,5 @@
 local tArgs={...}
+local ccr = require("/lib/ccr.lua")
 
 local option=tArgs[1]
 
@@ -33,7 +34,8 @@ if option=="install" then
 	
 	tArgs[1]=nil
 	for k,v in pairs(tArgs) do
-		ccr.installTree(v,2)
+		local succ, reason = ccr.installTree(v,2)
+		if not succ then print(reason) end
 	end
 	ccr.clearCache(0)
 elseif option=="remove" then
@@ -44,7 +46,8 @@ elseif option=="remove" then
 	
 	tArgs[1]=nil
 	for k,v in pairs(tArgs) do
-		ccr.remove(v,1)
+		local succ, reason = ccr.remove(v,1)
+		if not succ then print(reason) end
 	end
 elseif option=="purge" then
 	if tArgs[2]==nil then
