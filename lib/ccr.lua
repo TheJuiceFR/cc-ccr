@@ -254,6 +254,7 @@ function ccr.installTree(pkg, verb)						--Downloads and installs a package and 
 		if not succ then return false, k..": "..res end
 	end
 	
+	return true
 end
 
 function ccr.purge(pkg,verb) --Purges any files related to <pkg>
