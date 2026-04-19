@@ -1,5 +1,5 @@
 local tArgs={...}
-local ccr = require("/lib/ccr.lua")
+local ccr = require("/lib/ccr")
 
 local option=tArgs[1]
 
