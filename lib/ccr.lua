@@ -55,7 +55,7 @@ function loadldb()
 	end
 end
 
-function resolve(pkg,verb)	--determines what packages need updating.
+function resolve(verb)	--determines what packages need updating.
 	if type(verb) ~= "number" then verb = 0 end
 	if verb>0 then print("Finding old packages") end
 	local db=loaddb()
@@ -64,7 +64,7 @@ function resolve(pkg,verb)	--determines what packages need updating.
 	
 	for k,v in pairs(ldb) do
 		if db[k] and v.version~=db[k].version then
-			out[#out+1]=k
+			table.insert(out, k)
 		end
 	end
 	
@@ -84,12 +84,12 @@ end
 
 function sync(verb)
 	if type(verb) ~= "number" then verb = 0 end
-	if verb>0 then print("Syncing with database") end
+	if verb >= 2 then print("Syncing with database") end
 	
 	-- Get gdb, Global DataBase
 	local response=http.get("https://github.com/TheJuiceFR/cc-repository/raw/main/repository.lua")
 	if not response then 
-		if verb>0 then print("No response from main database") end
+		if verb >= 1 then print("No response from main database") end
 		return false
 	end
 	local gdb=response.readAll()
@@ -98,7 +98,7 @@ function sync(verb)
 	local succ1, gdb = pcall(loadstring,gdb)
 	local succ2, gdb = pcall(gdb)
 	if not succ1 or not succ2 then
-		if verb>0 then print("Bad response from database") end
+		if verb >= 1 then print("Bad response from database") end
 		return false
 	end
 	

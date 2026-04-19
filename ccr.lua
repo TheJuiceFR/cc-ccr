@@ -33,7 +33,7 @@ if option=="install" then
 	
 	tArgs[1]=nil
 	for k,v in pairs(tArgs) do
-		ccr.install(v,1)
+		ccr.installTree(v,2)
 	end
 	ccr.clearCache(0)
 elseif option=="remove" then
@@ -57,19 +57,28 @@ elseif option=="purge" then
 		ccr.purge(v,1)
 	end
 elseif option=="update" then
-	ccr.sync(0)
+	if not ccr.sync(0) then return end
 	
-	local db=ccr.loaddb()
-	local ldb=ccr.loadldb()
+	local needed = ccr.resolve(1)
+	local ldb = ccr.loadldb()
 	
-	for k,v in pairs(ldb) do
-		if not db[k] then
-			print("'"..k.."' is not in main database; skipping")
-		elseif v.version~=db[k].version then
-			print(k..": "..v.version.." > "..db[k].version)
-			ccr.install(k)
-		end
+	if #needed == 0 then
+		print("All up-to-date!")
+		return
 	end
+	
+	for k,v in pairs(needed) do
+		succ, res = ccr.download(v, 1)
+		if not succ then return false, v..": "..res end
+	end
+	
+	for k,v in pairs(needed) do
+		succ, res = ccr.install(v, 1, not ldb[v].explicit)
+		if not succ then return false, v..": "..res end
+	end
+	
+	print("All done!")
+	
 elseif option=="info" then
 	if tArgs[2]==nil then
 		print("No package name given")
