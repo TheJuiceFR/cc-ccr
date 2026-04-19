@@ -15,7 +15,19 @@ end
 
 
 
-local function download(pkg) --download a package to /tmp/ccr, deleting an existing package if it was downloaded
+local function wget(rootUrl, rootPath, filePath)
+	local request = http.get(rootUrl..filePath)
+	if not request then return false end
+	local file = fs.open(rootPath..filePath,'w')
+	if not file then return false end
+	
+	file.write(request.readAll())
+	file.close()
+	
+	return true
+end
+
+local function download(pkg, db) --download a package to /tmp/ccr, deleting an existing package if it was downloaded
 	print("Downloading '"..pkg.."'")
 	
 	if not db[pkg] then
@@ -38,7 +50,7 @@ local function download(pkg) --download a package to /tmp/ccr, deleting an exist
 	return true
 end
 
-local function install(pkg, dep)
+local function install(pkg, ldb, dep)
 	local pkgPath = "/tmp/ccr/"..pkg
 	if not fs.exists(pkgPath.."/pkg") then
 		return false, "'"..pkg.."' package does not exist."
@@ -64,7 +76,6 @@ local function install(pkg, dep)
 	
 	
 	ldb[pkg]=pkgInfo
-	saveldb(ldb)
 	return true
 end
 
@@ -125,17 +136,17 @@ dbf.write(textutils.serialize(db))
 dbf.write("\n\nreturn database")
 dbf.close()
 
-local db=loadfile("/cfg/ccr/db")()
+db=loadfile("/cfg/ccr/db")()
 
 
 local ldb={}
 
-print("Installing..."
+print("Installing...")
 
-download("ccinit")
-download("ccr")
-install("ccinit", true)
-install("ccr")
+download("ccinit", db)
+download("ccr", db)
+install("ccinit", ldb, true)
+install("ccr", ldb)
 
 print("Creating local database")
 
