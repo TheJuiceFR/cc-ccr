@@ -1,10 +1,10 @@
-#CCRepo
+# CCRepo
 
 ***The package manager for ComputerCraft!***
 
 ---
 
-#Install:
+### Install:
 
 Run this command whenever you need to install CCRepo, or repair a broken installation:
 
@@ -12,7 +12,7 @@ Run this command whenever you need to install CCRepo, or repair a broken install
 
 ---
 
-#Using the commandline utility
+### Using the commandline utility
 
 `ccr install <package1> [package2]...`
 
@@ -44,7 +44,7 @@ Run this command whenever you need to install CCRepo, or repair a broken install
 
 ---
 
-#Using the API
+### Using the API
 
 Add this to the top of your program:
 
@@ -98,5 +98,4 @@ Verbosity 2: One or two messages
 `ccr.purge(package,verbosity)`
 
 	Purges any files from the computer that are associated with a package
-
 
