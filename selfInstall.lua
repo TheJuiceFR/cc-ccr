@@ -36,6 +36,18 @@ local function wget(rootUrl, rootPath, filePath)
 	return true
 end
 
+local function wgetVar(url)
+	local response = http.get(url)
+	if not response then return nil, "No Response" end
+	local out = response.readAll()
+	response.close()
+	
+	local out = textutils.unserialize(out)
+	if out == nil then return nil, "Bad Response" end
+	
+	return out
+end
+
 local function download(pkg, db) --download a package to /tmp/ccr, deleting an existing package if it was downloaded
 	print("Downloading '"..pkg.."'")
 	
@@ -105,37 +117,19 @@ end
 print("Syncing with database")
 
 -- Get gdb, Global DataBase
-local response=http.get("https://github.com/TheJuiceFR/cc-repository/raw/main/repository.lua")
-if not response then 
-	print("No response from main database")
-	return false
-end
-local gdb=response.readAll()
-response.close()
-
-local succ1, gdb = pcall(loadstring,gdb)
-local succ2, gdb = pcall(gdb)
-if not succ1 or not succ2 then
-	print("Bad response from database")
+local gdb, failReason = wgetVar("https://github.com/TheJuiceFR/cc-repository/raw/main/repository.lua")
+if not gdb then
+	if verb>0 then print(failReason .. " from main database") end
 	return false
 end
 
-local db = {}
 -- Lookup each package in the gdb
 -- build full db
+local db = {}
 for k,v in pairs(gdb) do
-	local response=http.get(v.."/pkg")
-	if not response then 
-		print("No response from "..k.." database")
-		return false
-	end
-	local sdb = response.readAll()
-	response.close()
-	
-	local succ1, sdb = pcall(loadstring,sdb)
-	local succ2, sdb = pcall(sdb)
-	if not succ1 or not succ2 then
-		print("Bad response from "..k.." database")
+	local sdb, failReason = wgetVar(v.."/pkg")
+	if not sdb then
+		if verb>0 then print(failReason .. " from " .. k .. " package source") end
 		return false
 	end
 	
