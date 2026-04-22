@@ -8,6 +8,22 @@ end
 
 
 
+local function CsaveFile(path,value)
+	local f=fs.open(path,'w')
+	if not f then return false end
+	f.write(textutils.serialize(value))
+	f.close()
+	return true
+end
+
+local function CloadFile(path)
+	local f=fs.open(path,'r')
+	if not f then return nil end
+	local value = f.readAll()
+	f.close()
+	return textutils.deserialize(value)
+end
+
 local function wget(rootUrl, rootPath, filePath)
 	local request = http.get(rootUrl..filePath)
 	if not request then return false end
@@ -134,14 +150,7 @@ for k,v in pairs(gdb) do
 end
 
 print("Saving database")
-
-local dbf=fs.open("/cfg/ccr/db",'w')
-dbf.write("local database=")
-dbf.write(textutils.serialize(db))
-dbf.write("\n\nreturn database")
-dbf.close()
-
-
+CsaveFile("/cfg/ccr/db",db)
 
 
 
@@ -150,7 +159,7 @@ local ldb
 if repair then
 	print("Loading existing install database")
 	
-	succ, ldb = pcall(loadfile("/cfg/ccr/ldb"))
+	ldb = CloadFile("/cfg/ccr/ldb")
 	
 	if not succ then
 		print("WARNING: existing local database corrupted")
@@ -180,13 +189,8 @@ print("Installing...")
 download("ccr", db)
 install("ccr", ldb)
 
-print("Creating local database")
-
-local f=fs.open("/cfg/ccr/ldb",'w')
-f.write("local database=")
-f.write(textutils.serialize(ldb))
-f.write("\n\nreturn database")
-f.close()
+print("Saving local database")
+CsaveFile("/cfg/ccr/ldb",ldb)
 
 if repair then
 	print("Repair Complete!")

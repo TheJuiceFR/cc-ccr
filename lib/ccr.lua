@@ -4,13 +4,24 @@ local ccr = {}
 -------------------------------
 ---     local functions     ---
 
-local function saveldb(ldb)
-	local f=fs.open("/cfg/ccr/ldb",'w')
-	f.write("local database=")
-	f.write(textutils.serialize(ldb))
-	f.write("\n\nreturn database")
+local function CsaveFile(path,value)
+	local f=fs.open(path,'w')
+	if not f then return false end
+	f.write(textutils.serialize(value))
 	f.close()
 	return true
+end
+
+local function CloadFile(path)
+	local f=fs.open(path,'r')
+	if not f then return nil end
+	local value = f.readAll()
+	f.close()
+	return textutils.deserialize(value)
+end
+
+local function saveldb(ldb)
+	return CsaveFile("/cfg/ccr/ldb",ldb)
 end
 
 --Downloads a file from rootUrl..filePath
@@ -32,13 +43,13 @@ end
 ---     query functions     ---
 
 function ccr.loaddb()
-	local succ, f = pcall(loadfile("/cfg/ccr/db"))
-	if succ then
+	local f = CloadFile("/cfg/ccr/db")
+	if f then
 		return f
 	else
 		ccr.sync()
-		local succ, f = pcall(loadfile("/cfg/ccr/db"))
-		if succ then 
+		f = CloadFile("/cfg/ccr/db")
+		if f then 
 			return f
 		else
 			return {}
@@ -47,8 +58,8 @@ function ccr.loaddb()
 end
 
 function ccr.loadldb()
-	local succ, f = pcall(loadfile("/cfg/ccr/ldb"))
-	if succ then 
+	local f = CloadFile("/cfg/ccr/ldb")
+	if f then 
 		return f
 	else
 		return {}
@@ -131,13 +142,7 @@ function ccr.sync(verb)
 		db[k] = sdb
 	end
 	
-	local dbf=fs.open("/cfg/ccr/db",'w')
-	dbf.write("local database=")
-	dbf.write(textutils.serialize(db))
-	dbf.write("\n\nreturn database")
-	dbf.close()
-	
-	return true
+	return CsaveFile("/cfg/ccr/db",db)
 end
 
 function ccr.download(pkg,verb) --download a package to /tmp/ccr, deleting an existing package if it was downloaded
@@ -171,9 +176,8 @@ function ccr.install(pkg,verb,dep)	--installs or upgrades a single package.
 	end
 	if verb>0 then print("Installing '"..pkg.."'") end
 	
-	local pkgInfo = loadfile(pkgPath.."/pkg")
-	local succ, pkgInfo = pcall(pkgInfo)
-	if not succ then return false, "Bad pkg file" end
+	local pkgInfo = CloadFile(pkgPath.."/pkg")
+	if not pkgInfo then return false, "Bad pkg file" end
 	
 	if type(pkgInfo.version) ~= "string" then pkgInfo.version = "0" end
 	if type(pkgInfo.description) ~= "string" then pkgInfo.description = "No description provided." end

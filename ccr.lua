@@ -23,7 +23,7 @@ if option=="install" then
 	
 	tArgs[1]=nil
 	for k,v in pairs(tArgs) do
-		local succ, reason = ccr.installTree(v,2)
+		local succ, reason = ccr.installTree(v,2) --TODO doesn't work properly when a needed dependancy is only installed locally
 		if not succ then print(reason) end
 	end
 	ccr.clearCache(0)
@@ -53,7 +53,7 @@ elseif option=="purge" then
 elseif option=="update" then
 	if not ccr.sync(2) then print("Bad response from database"); return end
 	
-	local needed = ccr.resolve(1) --TODO Add check for added dependancies
+	local needed = ccr.resolve(1) --TODO Add check for dependancies added in updates
 	local ldb = ccr.loadldb()
 	
 	if #needed == 0 then
@@ -83,11 +83,12 @@ elseif option=="update" then
 		if not succ then return false, v..": "..res end
 	end
 	
+	--TODO Autoremove unneeded deps
 	print("All done!")
 	ccr.clearCache(0)
 	shell.run("/startup/ccr.lua")
-elseif option=="info" then
-	if tArgs[2]==nil then
+elseif option=="info" then	--TODO option doesn't give info about local-only packages
+	if tArgs[2]==nil then	--TODO tab completion doesn't show local-only packages
 		print("No package name given")
 		return
 	end
@@ -143,6 +144,10 @@ elseif option=="listall" then
 	for k,v in pairs(db) do
 		print(k..":",v.version)
 	end
+
+--TODO purge
+--TODO installLocal
+
 --[[elseif option=="bootstrap" then
 	local ldb=ccr.loadldb()
 	local d
