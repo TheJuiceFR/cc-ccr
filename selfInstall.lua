@@ -21,7 +21,7 @@ local function CloadFile(path)
 	if not f then return nil end
 	local value = f.readAll()
 	f.close()
-	return textutils.deserialize(value)
+	return textutils.unserialize(value)
 end
 
 local function wget(rootUrl, rootPath, filePath)
@@ -78,9 +78,8 @@ local function install(pkg, ldb, dep)
 	end
 	print("Installing '"..pkg.."'")
 	
-	local pkgInfo = loadfile(pkgPath.."/pkg")
-	local succ, pkgInfo = pcall(pkgInfo)
-	if not succ then error("Bad pkg file") end
+	local pkgInfo = CloadFile(pkgPath.."/pkg")
+	if not pkgInfo then error("Bad pkg file in "..pkg) end
 	
 	if type(pkgInfo.version) ~= "string" then pkgInfo.version = "0" end
 	if type(pkgInfo.description) ~= "string" then pkgInfo.description = "No description provided." end
@@ -155,7 +154,7 @@ if repair then
 	
 	ldb = CloadFile("/cfg/ccr/ldb")
 	
-	if not succ then
+	if not ldb then
 		print("WARNING: existing local database corrupted")
 		print("[C] Cancel repair\n[E] Erase existing database and continue")
 		
@@ -178,7 +177,11 @@ else
 	ldb={}
 end
 
-print("Installing...")
+if repair then
+	print("Reinstalling CCR...")
+else
+	print("Installing...")
+end
 
 download("ccr", db)
 install("ccr", ldb)
