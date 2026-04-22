@@ -91,6 +91,7 @@ elseif option=="info" then
 		print("No package name given")
 		return
 	end
+	ccr.sync(2)
 	
 	local db=ccr.loaddb()
 	local ldb=ccr.loadldb()
