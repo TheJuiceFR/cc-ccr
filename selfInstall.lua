@@ -193,6 +193,5 @@ if repair then
 else
 	print("Installation complete!")
 end
-print("Rebooting...")
-os.sleep(2)
-os.reboot()
+
+shell.run("/startup/ccr.lua")
