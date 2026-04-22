@@ -4,24 +4,7 @@ local ccr = require("/lib/ccr")
 local option=tArgs[1]
 
 local function usageText()
-print([[Usage: ccr <option> [arguments]
-	ccr install <package1> [package2]...
-		installs listed package(s)
-	ccr remove <package1> [package2]...
-		removes listed package(s)
-	ccr purge <package1> [package2]..
-		removes listed package(s) and it's config files
-	ccr update
-		updates all packages
-	ccr info <package>
-		gives info about package
-	ccr list
-		lists installed packages
-	ccr listall
-		lists all available packages
-	ccr bootstrap [side/drive]
-		bootstraps ccr onto disk in drive [side/drive]
-]])
+
 end
 
 
@@ -30,7 +13,13 @@ if option=="install" then
 		print("No package name given")
 		return
 	end
-	ccr.sync(1)
+	if not ccr.sync(2) then print("Bad response from database"); return end
+	
+	local needed = ccr.resolve(0)
+	if #needed ~= 0 then
+		print("Some packages need to be updated first; running an update for you..")
+		shell.run("ccr update")
+	end
 	
 	tArgs[1]=nil
 	for k,v in pairs(tArgs) do
@@ -38,6 +27,7 @@ if option=="install" then
 		if not succ then print(reason) end
 	end
 	ccr.clearCache(0)
+	shell.run("/startup/ccr.lua")
 elseif option=="remove" then
 	if tArgs[2]==nil then
 		print("No package name given")
@@ -49,6 +39,7 @@ elseif option=="remove" then
 		local succ, reason = ccr.remove(v,1)
 		if not succ then print(reason) end
 	end
+	shell.run("/startup/ccr.lua")
 elseif option=="purge" then
 	if tArgs[2]==nil then
 		print("No package name given")
@@ -60,15 +51,27 @@ elseif option=="purge" then
 		ccr.purge(v,1)
 	end
 elseif option=="update" then
-	if not ccr.sync(1) then return end
+	if not ccr.sync(2) then print("Bad response from database"); return end
 	
-	local needed = ccr.resolve(1)
+	local needed = ccr.resolve(1) --TODO Add check for added dependancies
 	local ldb = ccr.loadldb()
 	
 	if #needed == 0 then
 		print("All up-to-date!")
 		return
 	end
+	
+	print("Packages to be updated:")
+	for _,package in pairs(needed) do
+		write(package)
+		write(", ")
+	end
+	print()
+	print("Continue with installation [y/n]?")
+	repeat
+		local _, key = os.pullEvent("key")
+		if key == 49 then os.sleep(1); return end
+	until key == 21
 	
 	for k,v in pairs(needed) do
 		succ, res = ccr.download(v, 1)
@@ -81,13 +84,13 @@ elseif option=="update" then
 	end
 	
 	print("All done!")
-	
+	ccr.clearCache(0)
+	shell.run("/startup/ccr.lua")
 elseif option=="info" then
 	if tArgs[2]==nil then
 		print("No package name given")
 		return
 	end
-	ccr.sync(0)
 	
 	local db=ccr.loaddb()
 	local ldb=ccr.loadldb()
@@ -135,12 +138,11 @@ elseif option=="list" then
 	end
 	
 elseif option=="listall" then
-	ccr.sync(0)
 	local db=ccr.loaddb()
 	for k,v in pairs(db) do
 		print(k..":",v.version)
 	end
-elseif option=="bootstrap" then
+--[[elseif option=="bootstrap" then
 	local ldb=ccr.loadldb()
 	local d
 	if tArgs[2] then
@@ -186,12 +188,32 @@ elseif option=="bootstrap" then
 	f.write("\n\nreturn database")
 	f.close()
 	
-	print("Bootstrapping complete")
+	print("Bootstrapping complete")]]
 else
-	usageText()
+	print(
+[[Usage: ccr <option> [arguments]
+	ccr install <package1> [package2]...
+		installs listed package(s)
+	ccr remove <package1> [package2]...
+		removes listed package(s)
+	ccr purge <package1> [package2]..
+		removes listed package(s) and it's config files
+	ccr update
+		updates all packages
+	ccr info <package>
+		gives info about package
+	ccr list
+		lists installed packages
+	ccr listall
+		lists all available packages
+]])
 end
 
 
+--[[
+	ccr bootstrap [side/drive]
+		bootstraps ccr onto disk in drive [side/drive]
+]]
 
 
 

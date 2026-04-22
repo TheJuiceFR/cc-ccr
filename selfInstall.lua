@@ -1,11 +1,4 @@
-if fs.exists("/ccr.lua") then
-	--shell.run("/startup/000loadlib.lua")
-	--for _,f in pairs(fs.list("/startup")) do
-	--	if f~="000loadlib.lua" then shell.run("/startup/"..f) end
-	--end
-	print("CCRepo already installed. Skipping...")
-	return
-end
+
 
 if http==nil then
 	print("Your server settings do not allow the http library")
@@ -80,6 +73,18 @@ local function install(pkg, ldb, dep)
 end
 
 
+local repair = false
+if fs.exists("/cfg/ccr/ldb") then
+	--shell.run("/startup/000loadlib.lua")
+	--for _,f in pairs(fs.list("/startup")) do
+	--	if f~="000loadlib.lua" then shell.run("/startup/"..f) end
+	--end
+	print("CCRepo already installed. Repairing...")
+	repair = true
+end
+
+
+
 
 print("Syncing with database")
 
@@ -128,7 +133,7 @@ for k,v in pairs(gdb) do
 	db[k] = sdb
 end
 
-print("Initiating and testing database")
+print("Saving database")
 
 local dbf=fs.open("/cfg/ccr/db",'w')
 dbf.write("local database=")
@@ -136,16 +141,43 @@ dbf.write(textutils.serialize(db))
 dbf.write("\n\nreturn database")
 dbf.close()
 
-db=loadfile("/cfg/ccr/db")()
 
 
-local ldb={}
+
+
+
+local ldb
+if repair then
+	print("Loading existing install database")
+	
+	succ, ldb = pcall(loadfile("/cfg/ccr/ldb"))
+	
+	if not succ then
+		print("WARNING: existing local database corrupted")
+		print("[C] Cancel repair\n[E] Erase existing database and continue")
+		
+		local response = ""
+		print()
+		repeat
+			local x,y = term.getCursorPos()
+			term.setCursorPos(1,y-1)
+			term.clearLine()
+			response = io.read()
+		until response == "C" or response == "E"
+		
+		if response == "E" then
+			ldb = {}
+		else
+			return
+		end
+	end
+else
+	ldb={}
+end
 
 print("Installing...")
 
-download("ccinit", db)
 download("ccr", db)
-install("ccinit", ldb, true)
 install("ccr", ldb)
 
 print("Creating local database")
@@ -156,7 +188,11 @@ f.write(textutils.serialize(ldb))
 f.write("\n\nreturn database")
 f.close()
 
-print("Installation complete!")
+if repair then
+	print("Repair Complete!")
+else
+	print("Installation complete!")
+end
 print("Rebooting...")
 os.sleep(2)
 os.reboot()
