@@ -99,7 +99,7 @@ elseif option=="info" then
 	tArgs[1]=nil
 	for k,v in pairs(tArgs) do
 		if db[v] then
-			print(v..":")
+			print("  "..v..":")
 			print("version: "..db[v].version)
 			print("description: "..db[v].description)
 			if db[v].provides[1] then
