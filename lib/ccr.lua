@@ -120,8 +120,8 @@ function ccr.sync(verb)
 	-- build full db
 	local db = {}
 	for k,v in pairs(gdb) do
-		local sdb = wgetVar(v.."/pkg")
-		if not gdb then
+		local sdb, failReason = wgetVar(v.."/pkg")
+		if not sdb then
 			if verb>0 then print(failReason .. " from " .. k .. " package source") end
 			return false
 		end

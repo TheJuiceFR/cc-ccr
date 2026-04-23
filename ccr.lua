@@ -89,7 +89,7 @@ elseif option=="update" then
 	shell.run("/startup/ccr.lua")
 elseif option=="info" then	--TODO option doesn't give info about local-only packages
 	if tArgs[2]==nil then	--TODO tab completion doesn't show local-only packages
-		print("No package name given")
+		print("No package name given") --TODO Doesn't filter input, throws error when unknown package names are given
 		return
 	end
 	ccr.sync(2)
@@ -99,37 +99,71 @@ elseif option=="info" then	--TODO option doesn't give info about local-only pack
 	
 	tArgs[1]=nil
 	for k,v in pairs(tArgs) do
+		local entry
+		local localPkg = false
+		local filePkg = false
 		if db[v] then
-			print("  "..v..":")
-			print("version: "..db[v].version)
-			print("description: "..db[v].description)
-			if db[v].provides[1] then
-				write("provides: ")
-				for k2,v2 in pairs(db[v].provides) do
-					write(v2..", ")
-				end
-				print("")
+			entry = db[v]
+		elseif fs.isDir(v) then
+			local f=fs.open(fs.combine(v,"pkg"),'r')
+			local value
+			if f then
+				value = f.readAll()
+				f.close()
 			end
-			if db[v].depends[1] then
-				write("requires: ")
-				for k2,v2 in pairs(db[v].depends) do
-					write(v2..", ")
-				end
-				print("")
+			
+			if value then entry = textutils.unserialize(value) end
+			
+			if entry then
+				if type(entry.version) ~= "string" then entry.version = "Unspecified" end
+				if type(entry.description) ~= "string" then entry.description = "No description provided." end
+				if type(entry.provides) ~= "table" then entry.provides = {} end
+				if type(entry.depends) ~= "table" then entry.depends = {} end
+				if type(entry.optDepends) ~= "table" then entry.optDepends = {} end
+				v = fs.getName(v)
+				filePkg = true
 			end
-			if db[v].optDepends[1] then
-				print("Optional packages: ")
-				for k2,v2 in pairs(db[v].optDepends) do
-					print(v2[1]..": "..v2[2])
-				end
-			end
-		else
-			print("'"..v"' is not in main database")
 		end
-		if ldb[v] then
-			print("local version: "..ldb[v].version)
+		if not entry and ldb[v] then
+			entry = ldb[v]
+			localPkg = true
+		end
+		
+		if entry then
+			write(">> '"..v.."'")
+			if localPkg then write("(Local Package)") end
+			if filePkg then write("(File Package)") end
+			print(":")
+			
+			print("Version: "..entry.version)
+			print("Description: "..entry.description)
+			if entry.provides[1] then
+				write("Provides: ")
+				for k2,v2 in pairs(entry.provides) do
+					write(v2..", ")
+				end
+				print("")
+			end
+			if entry.depends[1] then
+				write("Requires: ")
+				for k2,v2 in pairs(entry.depends) do
+					write(v2..", ")
+				end
+				print("")
+			end
+			if entry.optDepends[1] then
+				print("Optional packages: ")
+				for k2,v2 in pairs(entry.optDepends) do
+					print("\7"..v2[1]..": "..v2[2])
+				end
+			end
+			if not localPkg then
+				local LVersion = "[not installed]"
+				if ldb[v] then LVersion = ldb[v].version end
+				print("local version: "..LVersion)
+			end
 		else
-			print("'"..v.."' is not installed locally")
+			print(">> '"..v.."': does not exist.")
 		end
 	end
 elseif option=="list" then
@@ -145,8 +179,32 @@ elseif option=="listall" then
 		print(k..":",v.version)
 	end
 
---TODO purge
---TODO installLocal
+elseif option=="installLocal" then --TODO Add dependancy check and autoinstall
+	local path = tArgs[2]
+	if fs.isDir(path) then
+		if not fs.exists(fs.combine(path,"pkg")) then
+			print("'"..fs.getName(path).."' is not a valid package")
+			return
+		end
+	else
+		if fs.getName(path) == "pkg" then
+			path = string.gsub(path,"/pkg$","") -- Point to the parent folder instead
+		else
+			print("'"..fs.getName(path).."' is not a pkg file or package folder")
+			return
+		end
+	end
+	
+	fs.delete(fs.combine("/tmp/ccr",fs.getName(path)))
+	fs.copy(path,fs.combine("/tmp/ccr",fs.getName(path)))
+	
+	local res, failReason = ccr.install(fs.getName(path),2)
+	
+	if not res then print("Failed to install package:\n"..failReason); return end
+	
+	print("Success!")
+	ccr.clearCache(0)
+	shell.run("/startup/ccr.lua")
 
 --[[elseif option=="bootstrap" then
 	local ldb=ccr.loadldb()

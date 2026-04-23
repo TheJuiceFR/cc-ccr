@@ -1,5 +1,5 @@
 {
-	version="2.3.0",
+	version="2.4.0",
 	description="ccr: CCRepo API and command line interface\nCCRepo provides convenient software installation and updating for ComputerCraft.",
 	provides={"/ccr.lua","/lib/ccr.lua","/startup/ccr.lua"},
 	depends={},
